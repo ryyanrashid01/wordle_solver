@@ -36,7 +36,7 @@ or open the complete searchable result list.
 | **Smarter suggestions** | Expected information gain leads the ranking, with letter coverage and word familiarity as supporting signals. |
 | **A broad offline dictionary** | 10,982 five-letter words—far beyond the historical 2,309-answer list—with no runtime API dependency. |
 | **Fast, private processing** | Candidate filtering stays in your browser and expensive ranking runs in a Web Worker. |
-| **Modern interface** | Responsive dark UI built with source-owned shadcn components, Radix primitives, Tailwind CSS, and Geist. |
+| **Modern interface** | Responsive light and dark themes built with source-owned shadcn components, Radix primitives, Tailwind CSS, and Geist. |
 
 ## How it works
 

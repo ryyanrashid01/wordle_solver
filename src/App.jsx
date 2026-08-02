@@ -11,9 +11,11 @@ import {
   Info,
   ListFilter,
   LoaderCircle,
+  Moon,
   RotateCcw,
   Search,
   Sparkles,
+  Sun,
   Undo2,
   X,
 } from "lucide-react";
@@ -65,6 +67,10 @@ import {
 const MAX_GUESSES = 6;
 const emptyStates = () => Array(5).fill("absent");
 const keyboardRows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
+const brandFrames = [
+  { word: "WORDLE", states: ["absent", "correct", "present", "absent", "present", "present"] },
+  { word: "SOLVER", states: Array(6).fill("correct") },
+];
 
 function commonnessLabel(tier) {
   if (tier <= 40) return "common";
@@ -122,6 +128,35 @@ function useRankedCandidates(candidates) {
   return { ranked: isReady ? result.ranked : [], isRanking: !isReady };
 }
 
+function AnimatedBrand() {
+  const [frameIndex, setFrameIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setFrameIndex((current) => (current + 1) % brandFrames.length);
+    }, 4200);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const frame = brandFrames[frameIndex];
+
+  return (
+    <span className="flex gap-1" title="Wordle Solver">
+      <span className="sr-only">Wordle Solver</span>
+      {[...frame.word].map((letter, index) => (
+        <span
+          aria-hidden="true"
+          className={`brand-tile brand-tile--${frame.states[index]}`}
+          key={`${frame.word}-${index}`}
+          style={{ "--brand-delay": `${index * 85}ms` }}
+        >
+          {letter}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function IconButton({ label, children, ...props }) {
   return (
     <Tooltip>
@@ -137,7 +172,7 @@ function IconButton({ label, children, ...props }) {
 
 function Tile({ letter, state, ghost, active, loading, onClick, index }) {
   if (loading) {
-    return <Skeleton className="aspect-square rounded-xl bg-white/[0.055]" />;
+    return <Skeleton className="aspect-square rounded-xl bg-muted" />;
   }
 
   const nextState = state ? cycleTileState(state) : "absent";
@@ -273,8 +308,8 @@ function CandidateDrawer({ candidates, open, onOpenChange, onChoose }) {
 
   return (
     <Drawer direction="right" onOpenChange={onOpenChange} open={open}>
-      <DrawerContent className="h-full w-[92vw]! border-l-white/10 bg-card/98 shadow-2xl sm:max-w-xl!">
-        <DrawerHeader className="relative border-b border-white/[0.07] px-5 pb-5 pr-14 pt-6 text-left sm:px-7 sm:pr-16">
+      <DrawerContent className="h-full w-[92vw]! border-l-border bg-card/98 shadow-2xl sm:max-w-xl!">
+        <DrawerHeader className="relative border-b border-border px-5 pb-5 pr-14 pt-6 text-left sm:px-7 sm:pr-16">
           <DrawerClose asChild>
             <Button aria-label="Close possibilities" className="absolute right-4 top-4" size="icon-sm" variant="ghost"><X /></Button>
           </DrawerClose>
@@ -292,7 +327,7 @@ function CandidateDrawer({ candidates, open, onOpenChange, onChoose }) {
           <Input
             aria-label="Filter possible words"
             autoFocus
-            className="h-10 border-white/10 bg-white/[0.035] pl-9 font-mono uppercase placeholder:normal-case"
+            className="h-10 border-border bg-muted/45 pl-9 font-mono uppercase placeholder:normal-case"
             maxLength={5}
             onChange={(event) => setQuery(event.target.value.replace(/[^a-z]/gi, ""))}
             placeholder="Find a word…"
@@ -308,7 +343,7 @@ function CandidateDrawer({ candidates, open, onOpenChange, onChoose }) {
         <ScrollArea className="min-h-0 flex-1">
           <div className="px-3 py-2 sm:px-5">
             {visible.map(({ word, score, commonness, rank }) => (
-              <Button className="grid h-12 w-full grid-cols-[48px_1fr_auto_52px] gap-3 rounded-lg px-2 text-left hover:bg-white/[0.045]" key={word} onClick={() => onChoose(word)} variant="ghost">
+              <Button className="grid h-12 w-full grid-cols-[48px_1fr_auto_52px] gap-3 rounded-lg px-2 text-left hover:bg-muted/60" key={word} onClick={() => onChoose(word)} variant="ghost">
                 <span className="font-mono text-[10px] text-muted-foreground">#{rank}</span>
                 <strong className="font-mono text-sm uppercase tracking-[0.12em]">{word}</strong>
                 <span className="text-[10px] capitalize text-muted-foreground">{commonnessLabel(commonness)}</span>
@@ -339,7 +374,7 @@ function HelpDialog({ open, onOpenChange }) {
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="border-white/10 bg-card/98 p-0 sm:max-w-lg">
+      <DialogContent className="border-border bg-card/98 p-0 sm:max-w-lg">
         <DialogHeader className="p-6 pb-3">
           <Badge className="mb-2 w-fit border-primary/20 bg-primary/10 text-primary" variant="outline"><BookOpen data-icon="inline-start" /> Quick start</Badge>
           <DialogTitle className="font-heading text-2xl tracking-tight">Bring your Wordle clues here</DialogTitle>
@@ -347,7 +382,7 @@ function HelpDialog({ open, onOpenChange }) {
         </DialogHeader>
         <div className="grid gap-3 px-6 pb-4">
           {steps.map(([title, description], index) => (
-            <div className="grid grid-cols-[36px_1fr] gap-3 rounded-xl border border-white/[0.07] bg-white/[0.025] p-3" key={title}>
+            <div className="grid grid-cols-[36px_1fr] gap-3 rounded-xl border border-border bg-muted/35 p-3" key={title}>
               <div className="grid size-9 place-items-center rounded-lg bg-primary/10 font-mono text-xs font-bold text-primary">0{index + 1}</div>
               <div><p className="font-medium text-foreground">{title}</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">{description}</p></div>
             </div>
@@ -365,6 +400,11 @@ function HelpDialog({ open, onOpenChange }) {
 }
 
 function App() {
+  const [theme, setTheme] = useState(() =>
+    typeof document !== "undefined" && document.documentElement.classList.contains("dark")
+      ? "dark"
+      : "light",
+  );
   const [history, setHistory] = useState([]);
   const [draft, setDraft] = useState("");
   const [draftStates, setDraftStates] = useState(emptyStates);
@@ -381,6 +421,18 @@ function App() {
   const guessesExhausted = history.length >= MAX_GUESSES && !solved;
   const keyStates = useMemo(() => keyboardStates(history), [history]);
   const canPlay = !solved && !guessesExhausted && candidates.length > 0;
+
+  useEffect(() => {
+    const isDark = theme === "dark";
+    document.documentElement.classList.toggle("dark", isDark);
+    document.documentElement.style.colorScheme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", isDark ? "#101210" : "#f5f7f4");
+    try {
+      window.localStorage.setItem("wordle-solver-theme", theme);
+    } catch {
+      // Theme still works when storage is unavailable.
+    }
+  }, [theme]);
 
   const showNotice = useCallback((message) => {
     window.clearTimeout(noticeTimer.current);
@@ -500,24 +552,23 @@ function App() {
         <div className="noise absolute inset-0 opacity-[0.035]" />
       </div>
 
-      <header className="sticky top-0 z-40 border-b border-white/[0.065] bg-background/75 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <a className="group flex items-center gap-3" href="/wordle_solver/">
-            <span className="grid grid-cols-2 gap-0.5">
-              <i className="grid size-5 place-items-center rounded-[5px] bg-wordle-correct font-mono text-[10px] font-bold not-italic text-white shadow-[0_0_20px_rgba(95,157,102,.3)]">W</i>
-              <i className="grid size-5 place-items-center rounded-[5px] bg-wordle-present font-mono text-[10px] font-bold not-italic text-white">S</i>
-            </span>
-            <span className="font-heading text-sm font-semibold tracking-tight sm:text-base">Wordle <span className="font-normal text-muted-foreground">Solver</span></span>
+          <a aria-label="Wordle Solver home" className="group" href={import.meta.env.BASE_URL}>
+            <AnimatedBrand />
           </a>
 
           <div className="flex items-center gap-2">
-            <Badge className="hidden border-white/[0.08] bg-white/[0.035] font-mono text-[9px] uppercase tracking-wider text-muted-foreground sm:flex" variant="outline">
+            <Badge className="hidden border-border bg-muted/45 font-mono text-[9px] uppercase tracking-wider text-muted-foreground lg:flex" variant="outline">
               {words.length.toLocaleString()} words
             </Badge>
+            <IconButton label={theme === "dark" ? "Use light mode" : "Use dark mode"} onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")}>
+              {theme === "dark" ? <Sun /> : <Moon />}
+            </IconButton>
             <IconButton label="How it works" onClick={() => setHelpOpen(true)}><CircleHelp /></IconButton>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button asChild size="icon" variant="outline"><a aria-label="View source on GitHub" href="https://github.com/ryyanrashid01/wordle_solver" rel="noreferrer" target="_blank"><Code2 /></a></Button>
+                <Button asChild className="hidden sm:inline-flex" size="icon" variant="outline"><a aria-label="View source on GitHub" href="https://github.com/ryyanrashid01/wordle_solver" rel="noreferrer" target="_blank"><Code2 /></a></Button>
               </TooltipTrigger>
               <TooltipContent sideOffset={8}>View source</TooltipContent>
             </Tooltip>
@@ -525,20 +576,10 @@ function App() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-7xl px-4 pb-16 pt-10 sm:px-6 sm:pt-14">
-        <section className="mb-9 grid items-end gap-6 lg:grid-cols-[1fr_460px]">
-          <div>
-            <Badge className="mb-5 border-primary/20 bg-primary/[0.08] text-primary" variant="outline"><Sparkles data-icon="inline-start" /> Information-first solving</Badge>
-            <h1 className="max-w-3xl font-heading text-4xl font-semibold tracking-[-0.05em] sm:text-6xl lg:text-7xl">
-              Less guessing.<br /><span className="text-muted-foreground">More knowing.</span>
-            </h1>
-          </div>
-          <p className="max-w-md text-sm leading-6 text-muted-foreground sm:text-base sm:leading-7">Recreate your Wordle colors. We scan every five-letter word, measure the value of each possible guess, and surface the move that reveals the most.</p>
-        </section>
-
+      <main className="relative z-10 mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         <section className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_430px]">
-          <Card className="gap-0 border border-white/[0.075] bg-card/70 py-0 shadow-[0_24px_90px_rgba(0,0,0,.28)] backdrop-blur-xl">
-            <CardHeader className="border-b border-white/[0.065] px-5 py-5 sm:px-7">
+          <Card className="gap-0 border border-border bg-card/80 py-0 shadow-[0_24px_90px_rgba(0,0,0,.16)] backdrop-blur-xl">
+            <CardHeader className="border-b border-border px-5 py-5 sm:px-7">
               <div>
                 <div className="mb-2 flex items-center gap-2">
                   <Badge className="font-mono text-[9px] uppercase tracking-[0.12em]" variant="secondary">Board {Math.min(history.length + 1, MAX_GUESSES)}/{MAX_GUESSES}</Badge>
@@ -561,9 +602,9 @@ function App() {
               </div>
 
               {canPlay && (
-                <div className="mx-auto my-5 grid w-full max-w-[440px] grid-cols-[42px_1fr_42px] overflow-hidden rounded-xl border border-white/[0.075] bg-white/[0.018]">
+                <div className="mx-auto mb-4 mt-5 grid w-full max-w-[440px] grid-cols-[42px_1fr_42px] overflow-hidden rounded-xl border border-border bg-muted/20">
                   <Button aria-label="Previous suggestion" className="h-full rounded-none border-0" disabled={Boolean(draft) || isRanking} onClick={() => browseSuggestion(-1)} variant="ghost"><ArrowLeft /></Button>
-                  <div className="flex min-h-12 items-center justify-center gap-3 border-x border-white/[0.065] px-2">
+                  <div className="flex min-h-12 items-center justify-center gap-3 border-x border-border px-2">
                     <span className="hidden font-mono text-[9px] uppercase tracking-wider text-muted-foreground sm:inline">{draft ? "Match the colors" : isRanking ? "Scanning dictionary" : `${suggestionIndex + 1} of ${rankedCandidates.length.toLocaleString()}`}</span>
                     <Button className="h-7 px-2 text-xs" disabled={isRanking && !draft} onClick={draft ? applyFeedback : useSuggestion} variant="secondary">{draft ? "Apply colors" : isRanking ? "Calculating…" : "Use suggestion"}</Button>
                   </div>
@@ -571,16 +612,18 @@ function App() {
                 </div>
               )}
 
-              <Keyboard onKey={handleKey} states={keyStates} />
-              <div className="mt-4 flex items-center justify-center gap-2 text-center text-[10px] text-muted-foreground"><Info className="size-3" /> Click a tile to cycle gray → yellow → green</div>
+              <div className={cn(!canPlay && "mt-6")}>
+                <Keyboard onKey={handleKey} states={keyStates} />
+              </div>
+              <div className="mt-3 flex items-center justify-center gap-2 text-center text-[10px] text-muted-foreground"><Info className="size-3" /> Click a tile to cycle gray → yellow → green</div>
             </CardContent>
           </Card>
 
-          <Card className="gap-0 border border-white/[0.075] bg-card/70 py-0 shadow-[0_24px_90px_rgba(0,0,0,.2)] backdrop-blur-xl lg:sticky lg:top-20">
-            <CardHeader className="border-b border-white/[0.065] px-5 py-5 sm:px-6">
+          <Card className="gap-0 border border-border bg-card/80 py-0 shadow-[0_24px_90px_rgba(0,0,0,.12)] backdrop-blur-xl lg:sticky lg:top-20">
+            <CardHeader className="border-b border-border px-5 py-5 sm:px-6">
               <div>
                 <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.15em] text-primary">{solved ? "Solved in your game" : "Best next guess"}</p>
-                {isRanking ? <Skeleton className="h-9 w-36 bg-white/[0.06]" /> : <CardTitle className="font-mono text-3xl uppercase tracking-[0.16em]">{suggestion || (solved ? history.at(-1)?.word : "No match")}</CardTitle>}
+                {isRanking ? <Skeleton className="h-9 w-36 bg-muted" /> : <CardTitle className="font-mono text-3xl uppercase tracking-[0.16em]">{suggestion || (solved ? history.at(-1)?.word : "No match")}</CardTitle>}
                 {activeRank && <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{commonnessLabel(activeRank.commonness)} vocabulary · ESDB tier {activeRank.commonness}</p>}
               </div>
               <CardAction>
@@ -589,9 +632,9 @@ function App() {
             </CardHeader>
 
             <CardContent className="p-0">
-              <div className="grid grid-cols-2 border-b border-white/[0.065]">
+              <div className="grid grid-cols-2 border-b border-border">
                 <div className="px-5 py-4 sm:px-6"><strong className="font-mono text-lg">{candidates.length.toLocaleString()}</strong><p className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">possible words</p></div>
-                <div className="border-l border-white/[0.065] px-5 py-4 sm:px-6"><strong className="font-mono text-lg">{isRanking ? "…" : activeRank?.entropy == null ? "—" : activeRank.entropy.toFixed(2)}</strong><p className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">information bits</p></div>
+                <div className="border-l border-border px-5 py-4 sm:px-6"><strong className="font-mono text-lg">{isRanking ? "…" : activeRank?.entropy == null ? "—" : activeRank.entropy.toFixed(2)}</strong><p className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">information bits</p></div>
               </div>
 
               <div className="m-5 flex gap-3 rounded-xl border border-primary/15 bg-primary/[0.045] p-3.5 sm:m-6">
@@ -602,9 +645,9 @@ function App() {
               <div className="px-5 pb-4 sm:px-6">
                 <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.13em] text-muted-foreground"><span>Strong alternatives</span><span>Score</span></div>
                 {isRanking
-                  ? Array.from({ length: 5 }, (_, index) => <Skeleton className="mb-1 h-11 w-full bg-white/[0.045]" key={index} />)
+                  ? Array.from({ length: 5 }, (_, index) => <Skeleton className="mb-1 h-11 w-full bg-muted" key={index} />)
                   : alternatives.map(({ word, score, rank }) => (
-                    <Button className="h-11 w-full justify-between border-t border-white/[0.055] px-1 hover:bg-transparent hover:text-primary" key={word} onClick={() => chooseCandidate(word)} variant="ghost">
+                    <Button className="h-11 w-full justify-between border-t border-border px-1 hover:bg-transparent hover:text-primary" key={word} onClick={() => chooseCandidate(word)} variant="ghost">
                       <span className="flex items-center gap-3"><i className="w-5 font-mono text-[9px] not-italic text-muted-foreground">{rank}</i><strong className="font-mono text-xs uppercase tracking-[0.12em]">{word}</strong></span>
                       <span className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">{score}<ChevronRight className="size-3" /></span>
                     </Button>
@@ -613,7 +656,7 @@ function App() {
                 {!isRanking && !rankedCandidates.length && <p className="py-5 text-center text-xs text-muted-foreground">Undo the last row to recover possible words.</p>}
               </div>
 
-              <div className="border-t border-white/[0.065] p-5 sm:p-6">
+              <div className="border-t border-border p-5 sm:p-6">
                 <Button className="h-10 w-full" disabled={isRanking || !rankedCandidates.length} onClick={() => setDrawerOpen(true)} variant="outline"><ListFilter data-icon="inline-start" /> Show all possibilities</Button>
               </div>
             </CardContent>
@@ -621,7 +664,7 @@ function App() {
         </section>
       </main>
 
-      <footer className="relative z-10 mx-auto flex max-w-7xl flex-col justify-between gap-2 border-t border-white/[0.055] px-4 py-6 font-mono text-[9px] uppercase tracking-wider text-muted-foreground sm:flex-row sm:px-6">
+      <footer className="relative z-10 mx-auto flex max-w-7xl flex-col justify-between gap-2 border-t border-border px-4 py-6 font-mono text-[9px] uppercase tracking-wider text-muted-foreground sm:flex-row sm:px-6">
         <span>Built for that “one more guess” feeling.</span>
         <span>{words.length.toLocaleString()} words · ESDB {WORD_SOURCE.ref} · processed locally</span>
       </footer>

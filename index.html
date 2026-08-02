@@ -11,6 +11,19 @@
     <link rel="icon" href="/wordle_solver/icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="/wordle_solver/manifest.json" />
     <title>Wordle Solver — Find your next guess</title>
+    <script>
+      (() => {
+        try {
+          const saved = localStorage.getItem("wordle-solver-theme");
+          const theme = saved || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          document.documentElement.classList.toggle("dark", theme === "dark");
+          document.documentElement.style.colorScheme = theme;
+          document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#101210" : "#f5f7f4";
+        } catch {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
