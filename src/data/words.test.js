@@ -1,21 +1,20 @@
 import { describe, expect, test } from "bun:test";
-import answerWords from "./answerWords";
 import words, { WORD_SOURCE, wordCommonness } from "./words";
 
-describe("complete word universe", () => {
-  test("contains the generated ESDB and extended vocabulary", () => {
-    expect(words).toHaveLength(10982);
+describe("ESDB word universe", () => {
+  test("contains only normalized five-letter ESDB entries", () => {
+    expect(words).toHaveLength(8888);
     expect(new Set(words).size).toBe(words.length);
     expect(words.every((word) => /^[a-z]{5}$/.test(word))).toBe(true);
     expect(WORD_SOURCE.ref).toBe("rel-2026.02.25");
-    expect(WORD_SOURCE.esdbWords).toBe(8888);
+    expect(WORD_SOURCE.wordCount).toBe(8888);
+    expect(WORD_SOURCE.size).toBe(80);
+    expect(WORD_SOURCE.spellings).toBe("A/B/Z");
+    expect(WORD_SOURCE.variantLevel).toBe(5);
     expect(wordCommonness.size).toBe(words.length);
   });
 
-  test("does not drop words that only existed in the legacy answer set", () => {
-    const dictionary = new Set(words);
-    expect(answerWords.every((word) => dictionary.has(word))).toBe(true);
-    expect(dictionary.has("ramen")).toBe(true);
-    expect(dictionary.has("latte")).toBe(true);
+  test("keeps commonness tiers within the selected ESDB range", () => {
+    expect([...wordCommonness.values()].every((tier) => tier >= 35 && tier <= 80)).toBe(true);
   });
 });

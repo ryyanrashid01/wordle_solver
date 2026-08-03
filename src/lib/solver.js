@@ -1,4 +1,14 @@
 export const TILE_STATES = ["absent", "present", "correct"];
+export const RANKING_CONFIG = Object.freeze({
+  entropyWeight: 0.82,
+  frequencyWeight: 0.06,
+  commonnessWeight: 0.12,
+  heuristicFrequencyWeight: 0.78,
+  heuristicCommonnessWeight: 0.22,
+  shortlistThreshold: 420,
+  shortlistSize: 200,
+  unevaluatedScale: 0.35,
+});
 
 export function scoreGuess(answer, guess) {
   const result = Array(5).fill("absent");
@@ -78,12 +88,12 @@ function frequencyScore(word, model, total) {
 function getCommonnessTier(word, commonnessByWord) {
   if (!commonnessByWord) return 60;
   if (typeof commonnessByWord.get === "function") {
-    return commonnessByWord.get(word) ?? 90;
+    return commonnessByWord.get(word) ?? 80;
   }
-  return commonnessByWord[word] ?? 90;
+  return commonnessByWord[word] ?? 80;
 }
 
-function commonnessScore(tier) {
+export function commonnessScore(tier) {
   if (tier <= 35) return 1;
   if (tier <= 40) return 0.92;
   if (tier <= 50) return 0.78;
@@ -91,7 +101,7 @@ function commonnessScore(tier) {
   if (tier <= 65) return 0.5;
   if (tier <= 70) return 0.35;
   if (tier <= 80) return 0.15;
-  return 0.02;
+  return 0.15;
 }
 
 function entropyForGuess(guess, possibleAnswers) {
@@ -108,6 +118,48 @@ function entropyForGuess(guess, possibleAnswers) {
   }, 0);
 }
 
+export function analyzeGuess(guess, possibleAnswers) {
+  if (!guess || possibleAnswers.length === 0) {
+    return {
+      entropy: 0,
+      expectedRemaining: 0,
+      patternCount: 0,
+      worstCase: 0,
+      buckets: [],
+    };
+  }
+
+  const groups = new Map();
+  for (const answer of possibleAnswers) {
+    const key = patternKey(scoreGuess(answer, guess));
+    groups.set(key, (groups.get(key) || 0) + 1);
+  }
+
+  const buckets = [...groups.entries()]
+    .map(([pattern, size]) => ({
+      pattern,
+      size,
+      probability: size / possibleAnswers.length,
+    }))
+    .sort((a, b) => b.size - a.size || a.pattern.localeCompare(b.pattern));
+  const entropy = buckets.reduce(
+    (total, { probability }) => total - probability * Math.log2(probability),
+    0,
+  );
+  const expectedRemaining = buckets.reduce(
+    (total, { size, probability }) => total + size * probability,
+    0,
+  );
+
+  return {
+    entropy,
+    expectedRemaining,
+    patternCount: buckets.length,
+    worstCase: buckets[0]?.size || 0,
+    buckets,
+  };
+}
+
 export function rankCandidates(candidates, commonnessByWord) {
   if (candidates.length === 0) return [];
   if (candidates.length === 1) {
@@ -116,6 +168,12 @@ export function rankCandidates(candidates, commonnessByWord) {
       score: 100,
       entropy: 0,
       commonness: getCommonnessTier(candidates[0], commonnessByWord),
+      normalizedEntropy: 0,
+      normalizedFrequency: 1,
+      normalizedCommonness: commonnessScore(getCommonnessTier(candidates[0], commonnessByWord)),
+      heuristic: 1,
+      rawScore: 1,
+      evaluated: true,
     }];
   }
 
@@ -138,14 +196,19 @@ export function rankCandidates(candidates, commonnessByWord) {
         ...candidate,
         normalizedFrequency,
         normalizedCommonness,
-        heuristic: normalizedFrequency * 0.78 + normalizedCommonness * 0.22,
+        heuristic:
+          normalizedFrequency * RANKING_CONFIG.heuristicFrequencyWeight +
+          normalizedCommonness * RANKING_CONFIG.heuristicCommonnessWeight,
       };
     })
     .sort((a, b) => b.heuristic - a.heuristic || a.word.localeCompare(b.word));
 
   // Full entropy is exact on smaller result sets. On the initial board we
   // evaluate the strongest coverage/commonness shortlist in a Web Worker.
-  const evaluationSize = candidates.length <= 420 ? candidates.length : 200;
+  const evaluationSize =
+    candidates.length <= RANKING_CONFIG.shortlistThreshold
+      ? candidates.length
+      : RANKING_CONFIG.shortlistSize;
   const evaluatedWords = new Set(
     byHeuristic.slice(0, evaluationSize).map(({ word }) => word),
   );
@@ -159,14 +222,21 @@ export function rankCandidates(candidates, commonnessByWord) {
       const normalizedEntropy = entropy === null ? 0 : entropy / maxEntropy;
       const combined =
         entropy === null
-          ? heuristic * 0.35
-          : normalizedEntropy * 0.82 + normalizedFrequency * 0.06 + normalizedCommonness * 0.12;
+          ? heuristic * RANKING_CONFIG.unevaluatedScale
+          : normalizedEntropy * RANKING_CONFIG.entropyWeight +
+            normalizedFrequency * RANKING_CONFIG.frequencyWeight +
+            normalizedCommonness * RANKING_CONFIG.commonnessWeight;
 
       return {
         word,
         entropy,
         commonness,
+        normalizedEntropy,
+        normalizedFrequency,
+        normalizedCommonness,
+        heuristic,
         rawScore: combined,
+        evaluated: entropy !== null,
       };
     })
     .sort(
@@ -176,9 +246,7 @@ export function rankCandidates(candidates, commonnessByWord) {
         a.word.localeCompare(b.word),
     )
     .map((candidate, index, ranked) => ({
-      word: candidate.word,
-      entropy: candidate.entropy,
-      commonness: candidate.commonness,
+      ...candidate,
       score:
         ranked[0].rawScore === ranked.at(-1).rawScore
           ? 100

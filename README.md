@@ -16,7 +16,7 @@
     <img alt="Bun" src="https://img.shields.io/badge/Bun-f9f1e1?style=flat-square&logo=bun&logoColor=14151a">
     <img alt="Vite" src="https://img.shields.io/badge/Vite_8-646cff?style=flat-square&logo=vite&logoColor=white">
     <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind_CSS_4-0f172a?style=flat-square&logo=tailwindcss&logoColor=38bdf8">
-    <img alt="10,982 words" src="https://img.shields.io/badge/dictionary-10%2C982_words-c9a84e?style=flat-square">
+    <img alt="8,888 ESDB words" src="https://img.shields.io/badge/ESDB_dictionary-8%2C888_words-c9a84e?style=flat-square">
     <img alt="Tests passing" src="https://img.shields.io/badge/tests-8_passing-6aaa64?style=flat-square">
   </p>
 </div>
@@ -34,9 +34,10 @@ or open the complete searchable result list.
 | --- | --- |
 | **Wordle-native input** | Type naturally, use the on-screen keyboard, and click tiles to reproduce feedback. |
 | **Smarter suggestions** | Expected information gain leads the ranking, with letter coverage and word familiarity as supporting signals. |
-| **A broad offline dictionary** | 10,982 five-letter words—far beyond the historical 2,309-answer list—with no runtime API dependency. |
+| **A maintained offline dictionary** | 8,888 five-letter words generated from one pinned ESDB release, with no supplemental lists or runtime API. |
 | **Fast, private processing** | Candidate filtering stays in your browser and expensive ranking runs in a Web Worker. |
 | **Modern interface** | Responsive light and dark themes built with source-owned shadcn components, Radix primitives, Tailwind CSS, and Geist. |
+| **Interactive scoring lab** | Explore feedback buckets, entropy, expected remaining words, and every weighted score component on the [live mathematics page](https://ryyanrashid01.github.io/wordle_solver/#scoring). |
 
 ## How it works
 
@@ -51,18 +52,16 @@ remaining candidate receives an exact entropy evaluation.
 
 ## The word universe
 
-The generated dataset is pinned and reproducible:
+The generated dataset has one pinned, reproducible source:
 
 | Source | Words | Role |
 | --- | ---: | --- |
-| English Speller Database `rel-2026.02.25` | 8,888 | Maintained American and British vocabulary through ESDB size 80 |
-| Legacy answer exceptions | 8 | Preserves coverage from the historical Wordle answer set |
-| Extended legacy vocabulary | 2,086 | Broad fallback coverage, deliberately downranked when obscure |
-| **Total** | **10,982** | Unique lowercase five-letter words |
+| English Speller Database `rel-2026.02.25` | **8,888** | American, British, and variant spellings through ESDB size 80 |
 
 ESDB commonness tiers help familiar guesses win close rankings without
 overriding information gain. Capitalized proper nouns and abbreviations are
-excluded from the canonical ESDB import.
+excluded. Historical project lists are not merged into the dataset, so every
+word and every commonness tier has the same provenance.
 
 Regenerate the checked-in dataset from the exact pinned upstream commit:
 
@@ -106,8 +105,10 @@ The Vite build is configured for the `/wordle_solver/` GitHub Pages base path.
 
 ```text
 src/App.jsx                Main interface and interaction state
+src/components/ScoringGuide.jsx  Interactive algorithm and mathematics page
 src/lib/solver.js          Wordle matching and ranking model
 src/lib/rank.worker.js     Background ranking worker
+src/lib/use-ranked-candidates.js Shared background-ranking hook
 src/data/words.js          Generated word universe and commonness tiers
 scripts/update-words.mjs   Reproducible ESDB import pipeline
 src/components/ui/         Source-owned shadcn UI primitives

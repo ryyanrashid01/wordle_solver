@@ -2,9 +2,6 @@ import { access, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import allWords from "../src/data/allWords.js";
-import answerWords from "../src/data/answerWords.js";
-
 const ESDB_REPOSITORY = "https://github.com/en-wl/wordlist.git";
 const ESDB_REF = "rel-2026.02.25";
 const ESDB_COMMIT = "7e99edab8e32f9f9ea2b15f249ca8d4d67237410";
@@ -85,7 +82,7 @@ async function extractWords(directory, size) {
     .filter((word) => /^[a-z]{5}$/.test(word));
 }
 
-function buildGeneratedModule(entries, counts) {
+function buildGeneratedModule(entries) {
   const serializedEntries = entries
     .map(([word, commonness]) => `  ["${word}", ${commonness}],`)
     .join("\n");
@@ -98,9 +95,10 @@ export const WORD_SOURCE = Object.freeze({
   name: "English Speller Database",
   ref: "${ESDB_REF}",
   commit: "${ESDB_COMMIT}",
-  esdbWords: ${counts.esdb},
-  legacyAnswerExtras: ${counts.answerExtras},
-  legacyExtendedExtras: ${counts.extendedExtras},
+  wordCount: ${entries.length},
+  size: 80,
+  spellings: "A/B/Z",
+  variantLevel: 5,
 });
 
 export const WORD_ENTRIES = [
@@ -130,34 +128,12 @@ async function main() {
       console.log(`ESDB size ${size}: ${extracted.length.toLocaleString()} five-letter words`);
     }
 
-    const esdbCount = commonness.size;
-    const answerSet = new Set(answerWords);
-    let answerExtras = 0;
-    let extendedExtras = 0;
-
-    for (const word of answerWords) {
-      if (!/^[a-z]{5}$/.test(word) || commonness.has(word)) continue;
-      commonness.set(word, 60);
-      answerExtras += 1;
-    }
-
-    for (const word of allWords) {
-      if (!/^[a-z]{5}$/.test(word) || commonness.has(word)) continue;
-      commonness.set(word, answerSet.has(word) ? 60 : 90);
-      if (answerSet.has(word)) answerExtras += 1;
-      else extendedExtras += 1;
-    }
-
     const entries = [...commonness.entries()].sort(([a], [b]) => a.localeCompare(b));
-    const generated = buildGeneratedModule(entries, {
-      esdb: esdbCount,
-      answerExtras,
-      extendedExtras,
-    });
+    const generated = buildGeneratedModule(entries);
 
     await Bun.write(OUTPUT_PATH, generated);
     console.log(`Generated ${entries.length.toLocaleString()} words at ${OUTPUT_PATH}`);
-    console.log(`${esdbCount.toLocaleString()} ESDB · ${answerExtras} answer extras · ${extendedExtras.toLocaleString()} extended extras`);
+    console.log(`${entries.length.toLocaleString()} words · one pinned ESDB source · no supplemental merge`);
   } finally {
     if (temporaryRoot) await rm(temporaryRoot, { recursive: true, force: true });
   }

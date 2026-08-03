@@ -22,6 +22,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ScoringGuide } from "@/components/ScoringGuide";
 import {
   Card,
   CardAction,
@@ -56,13 +57,13 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-import words, { WORD_SOURCE, wordCommonness } from "./data/words";
+import words, { WORD_SOURCE } from "./data/words";
 import {
   cycleTileState,
   filterCandidates,
   keyboardStates,
-  rankCandidates,
 } from "./lib/solver";
+import { useRankedCandidates } from "./lib/use-ranked-candidates";
 
 const MAX_GUESSES = 6;
 const emptyStates = () => Array(5).fill("absent");
@@ -77,55 +78,7 @@ function commonnessLabel(tier) {
   if (tier <= 50) return "familiar";
   if (tier <= 60) return "standard";
   if (tier <= 70) return "uncommon";
-  if (tier <= 80) return "rare";
-  return "extended";
-}
-
-function useRankedCandidates(candidates) {
-  const [result, setResult] = useState({ source: null, ranked: [] });
-
-  useEffect(() => {
-    if (!candidates.length) return undefined;
-
-    let cancelled = false;
-    let fallbackTimer;
-
-    if (typeof Worker === "undefined") {
-      fallbackTimer = window.setTimeout(() => {
-        if (!cancelled) setResult({ source: candidates, ranked: rankCandidates(candidates, wordCommonness) });
-      }, 0);
-      return () => {
-        cancelled = true;
-        window.clearTimeout(fallbackTimer);
-      };
-    }
-
-    const worker = new Worker(new URL("./lib/rank.worker.js", import.meta.url), {
-      type: "module",
-    });
-
-    worker.onmessage = ({ data }) => {
-      if (!cancelled) setResult({ source: candidates, ranked: data });
-      worker.terminate();
-    };
-    worker.onerror = () => {
-      if (!cancelled) setResult({ source: candidates, ranked: rankCandidates(candidates, wordCommonness) });
-      worker.terminate();
-    };
-    worker.postMessage({
-      candidates,
-      commonness: candidates.map((word) => wordCommonness.get(word) ?? 90),
-    });
-
-    return () => {
-      cancelled = true;
-      worker.terminate();
-    };
-  }, [candidates]);
-
-  if (!candidates.length) return { ranked: [], isRanking: false };
-  const isReady = result.source === candidates;
-  return { ranked: isReady ? result.ranked : [], isRanking: !isReady };
+  return "rare";
 }
 
 function AnimatedBrand() {
@@ -319,7 +272,7 @@ function CandidateDrawer({ candidates, open, onOpenChange, onChoose }) {
           <DrawerTitle className="font-heading text-2xl tracking-tight">
             {candidates.length.toLocaleString()} possible words
           </DrawerTitle>
-          <DrawerDescription>Every match from the complete dictionary pool, ordered by its value as your next guess.</DrawerDescription>
+          <DrawerDescription>Every match from the ESDB word universe, ordered by its value as your next guess.</DrawerDescription>
         </DrawerHeader>
 
         <div className="relative mx-5 my-4 sm:mx-7">
@@ -369,7 +322,7 @@ function HelpDialog({ open, onOpenChange }) {
   const steps = [
     ["Make your guess", "Type any five-letter word, or accept the faded recommendation."],
     ["Copy the colors", "Click each tile to cycle gray, yellow, and green until it matches Wordle."],
-    ["Apply and repeat", "We eliminate impossible words and rank the complete dictionary again."],
+    ["Apply and repeat", "We eliminate impossible words and rerank the ESDB candidates."],
   ];
 
   return (
@@ -405,6 +358,11 @@ function App() {
       ? "dark"
       : "light",
   );
+  const [view, setView] = useState(() =>
+    typeof window !== "undefined" && window.location.hash === "#scoring"
+      ? "scoring"
+      : "solver",
+  );
   const [history, setHistory] = useState([]);
   const [draft, setDraft] = useState("");
   const [draftStates, setDraftStates] = useState(emptyStates);
@@ -434,6 +392,26 @@ function App() {
     }
   }, [theme]);
 
+  useEffect(() => {
+    const syncView = () => {
+      setView(window.location.hash === "#scoring" ? "scoring" : "solver");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+    window.addEventListener("hashchange", syncView);
+    return () => window.removeEventListener("hashchange", syncView);
+  }, []);
+
+  const openScoringGuide = () => {
+    window.location.hash = "scoring";
+    setView("scoring");
+  };
+
+  const openSolver = () => {
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+    setView("solver");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const showNotice = useCallback((message) => {
     window.clearTimeout(noticeTimer.current);
     setNotice(message);
@@ -445,7 +423,7 @@ function App() {
   const useSuggestion = useCallback(() => {
     if (!canPlay) return;
     if (!suggestion) {
-      showNotice(isRanking ? "Ranking the full dictionary…" : "No suggestion available");
+      showNotice(isRanking ? "Ranking the ESDB word universe…" : "No suggestion available");
       return;
     }
     setDraft(suggestion);
@@ -484,7 +462,7 @@ function App() {
 
   useEffect(() => {
     const onKeyDown = (event) => {
-      if (helpOpen || drawerOpen) return;
+      if (view !== "solver" || helpOpen || drawerOpen) return;
       if (event.target instanceof HTMLInputElement) return;
       if (event.key === "Enter") handleKey("ENTER");
       else if (event.key === "Backspace") handleKey("BACKSPACE");
@@ -492,7 +470,7 @@ function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [drawerOpen, handleKey, helpOpen]);
+  }, [drawerOpen, handleKey, helpOpen, view]);
 
   const cycleState = (index) => {
     if (!draft[index]) return;
@@ -535,7 +513,7 @@ function App() {
       : candidates.length === 0
         ? "No dictionary word matches those colors. Check the previous row."
         : history.length === 0
-          ? "Start with the strongest full-dictionary guess, or type your own."
+          ? "Start with the strongest ESDB-wide guess, or type your own."
           : `${candidates.length.toLocaleString()} words still fit every clue.`;
 
   const activeRank = rankedCandidates[suggestionIndex];
@@ -565,6 +543,9 @@ function App() {
             <IconButton label={theme === "dark" ? "Use light mode" : "Use dark mode"} onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")}>
               {theme === "dark" ? <Sun /> : <Moon />}
             </IconButton>
+            <IconButton label={view === "scoring" ? "Back to solver" : "Scoring lab"} onClick={view === "scoring" ? openSolver : openScoringGuide}>
+              {view === "scoring" ? <ArrowLeft /> : <BookOpen />}
+            </IconButton>
             <IconButton label="How it works" onClick={() => setHelpOpen(true)}><CircleHelp /></IconButton>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -576,6 +557,9 @@ function App() {
         </div>
       </header>
 
+      {view === "scoring" ? (
+        <ScoringGuide initialIsRanking={isRanking} initialRanked={rankedCandidates} onBack={openSolver} />
+      ) : (
       <main className="relative z-10 mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         <section className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_430px]">
           <Card className="gap-0 border border-border bg-card/80 py-0 shadow-[0_24px_90px_rgba(0,0,0,.16)] backdrop-blur-xl">
@@ -591,7 +575,7 @@ function App() {
               </div>
               <CardAction className="flex gap-2">
                 <IconButton disabled={!history.length} label="Undo last guess" onClick={undo}><Undo2 /></IconButton>
-                <IconButton label="Start over" onClick={reset}><RotateCcw /></IconButton>
+                <Button disabled={!history.length && !draft} onClick={reset} variant="outline"><RotateCcw data-icon="inline-start" /> Reset</Button>
               </CardAction>
             </CardHeader>
 
@@ -639,7 +623,7 @@ function App() {
 
               <div className="m-5 flex gap-3 rounded-xl border border-primary/15 bg-primary/[0.045] p-3.5 sm:m-6">
                 <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
-                <p className="text-[11px] leading-5 text-muted-foreground"><strong className="text-foreground">The full dictionary is in play.</strong> Information gain leads the ranking, while ESDB commonness keeps obscure words from crowding better everyday guesses.</p>
+                <p className="text-[11px] leading-5 text-muted-foreground"><strong className="text-foreground">All {words.length.toLocaleString()} ESDB words are in play.</strong> Information gain leads the ranking, while ESDB commonness keeps obscure words from crowding better everyday guesses.</p>
               </div>
 
               <div className="px-5 pb-4 sm:px-6">
@@ -663,6 +647,7 @@ function App() {
           </Card>
         </section>
       </main>
+      )}
 
       <footer className="relative z-10 mx-auto flex max-w-7xl flex-col justify-between gap-2 border-t border-border px-4 py-6 font-mono text-[9px] uppercase tracking-wider text-muted-foreground sm:flex-row sm:px-6">
         <span>Built for that “one more guess” feeling.</span>

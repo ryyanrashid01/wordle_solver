@@ -2,7 +2,7 @@
 
 This document explains the scoring model used by this project, from raw Wordle
 feedback to the `70–100` **smart score** shown in the interface. It includes a
-complete run with `PLANT` as the hidden answer using the current 10,982-word
+complete run with `PLANT` as the hidden answer using the current 8,888-word
 dataset and the exact implementation in `src/lib/solver.js`.
 
 The most important idea is simple:
@@ -213,7 +213,6 @@ maps those tiers onto this scale:
 | `≤ 65` | `0.50` |
 | `≤ 70` | `0.35` |
 | `≤ 80` | `0.15` |
-| Extended legacy word | `0.02` |
 
 This does not claim that a tier-35 word is the answer with 100% probability.
 It is a small quality signal that stops obscure dictionary entries from winning
@@ -221,11 +220,11 @@ close contests against equally informative everyday words.
 
 ## 5. The inexpensive shortlist heuristic
 
-The complete initial dictionary contains 10,982 words. Calculating every guess
+The initial ESDB universe contains 8,888 words. Calculating every guess
 against every possible answer would require roughly:
 
 ```text
-10,982 × 10,982 ≈ 120.6 million guess-answer comparisons
+8,888 × 8,888 ≈ 79.0 million guess-answer comparisons
 ```
 
 Instead, the solver first calculates:
@@ -377,21 +376,21 @@ current generated dataset. They are not illustrative placeholders.
 The solver begins with:
 
 ```text
-N = 10,982 candidates
+N = 8,888 candidates
 ```
 
 The first recommendations are:
 
 | Rank | Guess | Smart score | Entropy | ESDB tier |
 | ---: | --- | ---: | ---: | ---: |
-| 1 | `RATES` | `100.0` | `6.104071 bits` | 35 |
-| 2 | `TALES` | `99.9` | `6.071633 bits` | 35 |
-| 3 | `LANES` | `99.7` | `6.024800 bits` | 35 |
-| 4 | `SANER` | `99.7` | `6.048095 bits` | 35 |
-| 5 | `CARES` | `99.6` | `6.005968 bits` | 35 |
+| 1 | `RATES` | `100.0` | `6.123199 bits` | 35 |
+| 2 | `TALES` | `99.8` | `6.086691 bits` | 35 |
+| 3 | `CARES` | `99.6` | `6.014815 bits` | 35 |
+| 4 | `TEARS` | `99.6` | `6.050995 bits` | 35 |
+| 5 | `DARES` | `99.5` | `6.006414 bits` | 35 |
 
-Notice that entropy alone is not the complete ordering. `SANER` has slightly
-more entropy than `LANES`, but the frequency contribution makes `LANES` narrowly
+Notice that entropy alone is not the complete ordering. `TEARS` has slightly
+more entropy than `CARES`, but the frequency contribution makes `CARES` narrowly
 stronger in the combined score.
 
 ### Calculating `RATES` in detail
@@ -399,38 +398,38 @@ stronger in the combined score.
 For `RATES`, the frequency model produces:
 
 ```text
-positionValue = 7,976
-coverageValue = 20,116
+positionValue = 6,872
+coverageValue = 16,518
 duplicateCount = 0
-N = 10,982
+N = 8,888
 ```
 
 Therefore:
 
 ```text
 frequency(RATES)
-  = 7,976 / (5 × 10,982)
-  + 20,116 / (5 × 10,982)
+  = 6,872 / (5 × 8,888)
+  + 16,518 / (5 × 8,888)
   - 0.035 × 0
 
-  = 0.51160080
+  = 0.52632763
 ```
 
 Across the initial dataset:
 
 ```text
-minimumFrequency = -0.02364870
-maximumFrequency =  0.52376616
+minimumFrequency = -0.02585959
+maximumFrequency =  0.53753375
 ```
 
 So:
 
 ```text
 normalizedFrequency(RATES)
-  = (0.51160080 - (-0.02364870))
-    / (0.52376616 - (-0.02364870))
+  = (0.52632763 - (-0.02585959))
+    / (0.53753375 - (-0.02585959))
 
-  = 0.97777671
+  = 0.98010960
 ```
 
 `RATES` is an ESDB tier-35 word:
@@ -443,51 +442,51 @@ Its shortlist heuristic is:
 
 ```text
 heuristic(RATES)
-  = 0.78 × 0.97777671 + 0.22 × 1.0
-  = 0.98266583
+  = 0.78 × 0.98010960 + 0.22 × 1.0
+  = 0.98448549
 ```
 
-When simulated against all 10,982 candidate answers, `RATES` creates 193
+When simulated against all 8,888 candidate answers, `RATES` creates 190
 distinct feedback patterns. Some of the largest buckets are:
 
 | Pattern | Answers in bucket |
 | --- | ---: |
-| `00000` | 776 |
-| `00002` | 591 |
-| `00010` | 550 |
-| `01000` | 541 |
-| `02000` | 370 |
-| `00020` | 340 |
+| `00000` | 621 |
+| `00002` | 555 |
+| `00010` | 394 |
+| `01000` | 376 |
+| `00020` | 292 |
+| `00022` | 246 |
 
 Combining every bucket gives:
 
 ```text
-entropy(RATES) = 6.10407057 bits
+entropy(RATES) = 6.12319938 bits
 ```
 
-The uncertainty ceiling for 10,982 candidates is:
+The uncertainty ceiling for 8,888 candidates is:
 
 ```text
-log₂(10,982) = 13.42285320 bits
+log₂(8,888) = 13.11764310 bits
 ```
 
 Thus:
 
 ```text
 normalizedEntropy(RATES)
-  = 6.10407057 / 13.42285320
-  = 0.45475209
+  = 6.12319938 / 13.11764310
+  = 0.46679112
 ```
 
 The combined raw score is:
 
 ```text
 rawScore(RATES)
-  = 0.82 × 0.45475209
-  + 0.06 × 0.97777671
+  = 0.82 × 0.46679112
+  + 0.06 × 0.98010960
   + 0.12 × 1.0
 
-  = 0.55156332
+  = 0.56157530
 ```
 
 That is the highest initial raw score, so its displayed score becomes `100`.
@@ -497,21 +496,21 @@ That is the highest initial raw score, so its displayed score becomes `100`.
 Before receiving any clues, `PLANT` has:
 
 ```text
-normalizedFrequency = 0.63108666
+normalizedFrequency = 0.61293595
 normalizedCommonness = 1.0
-heuristic = 0.71224760
+heuristic = 0.69809004
 ```
 
 It does not reach the initial 200-word entropy shortlist, so at this stage:
 
 ```text
-rawScore(PLANT) = 0.35 × 0.71224760 = 0.24928666
-displayed score = 82.5
+rawScore(PLANT) = 0.35 × 0.69809004 = 0.24433151
+displayed score = 81.1 (rank 2,626)
 ```
 
 `PLANT` is a perfectly normal possible answer. It is simply a weaker opening
 question than `RATES` because it tests a less informative combination of letters
-across the full 10,982-word universe.
+across the full 8,888-word universe.
 
 ### Apply `RATES` against `PLANT`
 
@@ -549,191 +548,199 @@ The observed pattern is:
 01100
 ```
 
-Exactly 105 words produce `01100` when `RATES` is played against them. The
-candidate set therefore falls from 10,982 to 105:
+Exactly 76 words produce `01100` when `RATES` is played against them. The
+candidate set therefore falls from 8,888 to 76:
 
 ```text
-10,982 → 105
+8,888 → 76
 ```
 
-That removes approximately 99.04% of the starting universe in one guess. This
-particular outcome is better than the average implied by 6.10 bits; entropy
-scores the guess before knowing which of its 193 patterns will occur.
+That removes approximately 99.14% of the starting universe in one guess. This
+particular outcome is better than the average implied by 6.12 bits; entropy
+scores the guess before knowing which of its 190 patterns will occur.
 
-### Round 2: ranking the remaining 105 words
+### Round 2: ranking the remaining 76 words
 
-Because 105 is below the 420-word threshold, the solver now calculates exact
+Because 76 is below the 420-word threshold, the solver now calculates exact
 entropy for every surviving candidate.
 
 The new leaders are:
 
 | Rank | Guess | Smart score | Entropy | ESDB tier |
 | ---: | --- | ---: | ---: | ---: |
-| 1 | `PLAIT` | `100.0` | `4.393322 bits` | 50 |
-| 2 | `ADOPT` | `99.5` | `4.192710 bits` | 35 |
-| 3 | `LOATH` | `99.4` | `4.214909 bits` | 35 |
-| 4 | `GLOAT` | `99.4` | `4.176430 bits` | 35 |
-| 5 | `PLANT` | `99.2` | `4.142731 bits` | 35 |
+| 1 | `ADOPT` | `100.0` | `4.303160 bits` | 35 |
+| 2 | `ALOFT` | `98.7` | `4.173695 bits` | 35 |
+| 3 | `ABOUT` | `98.1` | `4.190528 bits` | 35 |
+| 4 | `PLANT` | `98.0` | `4.166390 bits` | 35 |
+| 5 | `GLOAT` | `97.8` | `4.135962 bits` | 35 |
 
-The actual answer has climbed from a non-shortlisted opening option to fifth
+The actual answer has climbed from a non-shortlisted opening option to fourth
 place because the new feedback makes its letters and positions highly relevant.
 
-### Calculating `PLAIT` in detail
+### Calculating `ADOPT` in detail
 
-For the 105 remaining candidates:
+For the 76 remaining candidates:
 
 ```text
-positionValue = 112
-coverageValue = 294
+positionValue = 90
+coverageValue = 209
 duplicateCount = 0
-N = 105
+N = 76
 ```
 
 Thus:
 
 ```text
-frequency(PLAIT)
-  = 112 / (5 × 105)
-  + 294 / (5 × 105)
+frequency(ADOPT)
+  = 90 / (5 × 76)
+  + 209 / (5 × 76)
 
-  = 0.77333333
+  = 0.78684211
 ```
 
 The minimum and maximum frequency scores in this round are:
 
 ```text
-minimumFrequency = 0.57261905
-maximumFrequency = 0.78666667
+minimumFrequency = 0.55184211
+maximumFrequency = 0.79736842
 ```
 
 Therefore:
 
 ```text
-normalizedFrequency(PLAIT)
-  = (0.77333333 - 0.57261905)
-    / (0.78666667 - 0.57261905)
+normalizedFrequency(ADOPT)
+  = (0.78684211 - 0.55184211)
+    / (0.79736842 - 0.55184211)
 
-  = 0.93770857
+  = 0.95712755
 ```
 
-`PLAIT` is tier 50, so:
+`ADOPT` is tier 35, so:
 
 ```text
-normalizedCommonness(PLAIT) = 0.78
+normalizedCommonness(ADOPT) = 1.00
 ```
 
 Its heuristic value is:
 
 ```text
-heuristic(PLAIT)
-  = 0.78 × 0.93770857 + 0.22 × 0.78
-  = 0.90301268
+heuristic(ADOPT)
+  = 0.78 × 0.95712755 + 0.22 × 1.00
+  = 0.96655949
 ```
 
-Against the 105 remaining answers, `PLAIT` creates 34 distinct patterns:
+Against the 76 remaining answers, `ADOPT` creates 26 distinct patterns:
 
 ```text
-entropy(PLAIT) = 4.39332225 bits
+entropy(ADOPT) = 4.30315970 bits
 ```
 
 The maximum uncertainty is:
 
 ```text
-log₂(105) = 6.71424552 bits
+log₂(76) = 6.24792751 bits
 ```
 
 So:
 
 ```text
-normalizedEntropy(PLAIT)
-  = 4.39332225 / 6.71424552
-  = 0.65432851
+normalizedEntropy(ADOPT)
+  = 4.30315970 / 6.24792751
+  = 0.68873393
 ```
 
 Finally:
 
 ```text
-rawScore(PLAIT)
-  = 0.82 × 0.65432851
-  + 0.06 × 0.93770857
-  + 0.12 × 0.78
+rawScore(ADOPT)
+  = 0.82 × 0.68873393
+  + 0.06 × 0.95712755
+  + 0.12 × 1.00
 
-  = 0.68641189
+  = 0.74218948
 ```
 
-That is the highest raw score in round two, so `PLAIT` displays `100`.
+That is the highest raw score in round two, so `ADOPT` displays `100`.
 
-### Why `PLAIT` ranks above the actual answer
+### Why `ADOPT` ranks above the actual answer
 
 For `PLANT` in the same round:
 
 ```text
-normalizedFrequency = 0.86651835
+normalizedFrequency = 0.88210075
 normalizedCommonness = 1.0
-entropy = 4.14273051 bits
-normalizedEntropy = 0.61700611
-rawScore = 0.67793611
-displayed score = 99.2
+entropy = 4.16639038 bits
+normalizedEntropy = 0.66684359
+rawScore = 0.71973778
+displayed score = 98.0
 ```
 
-`PLANT` receives a stronger commonness score, but `PLAIT` has better expected
-information and frequency values across the remaining set. The solver does not
-know that `PLANT` is the hidden answer. From its perspective, `PLAIT` is a
-slightly better question.
+`ADOPT` has slightly better expected information and letter-quality values
+across the remaining set. The solver does not know that `PLANT` is the hidden
+answer. From its perspective, `ADOPT` is a better question.
 
 This distinction is central to an information-first solver:
 
 > The best next guess is the word expected to improve our knowledge the most,
 > not necessarily the candidate that happens to be correct in hindsight.
 
-### Apply `PLAIT` against `PLANT`
+### Apply `ADOPT` against `PLANT`
 
 ```text
 Answer: P L A N T
-Guess:  P L A I T
+Guess:  A D O P T
 ```
 
 The feedback is:
 
 | Tile | State |
 | --- | --- |
-| `P` | Green (`2`) |
-| `L` | Green (`2`) |
-| `A` | Green (`2`) |
-| `I` | Gray (`0`) |
+| `A` | Yellow (`1`) |
+| `D` | Gray (`0`) |
+| `O` | Gray (`0`) |
+| `P` | Yellow (`1`) |
 | `T` | Green (`2`) |
 
 ```text
-P L A I T
-🟩 🟩 🟩 ⬛ 🟩
-2  2  2  0  2
+A D O P T
+🟨 ⬛ ⬛ 🟨 🟩
+1  0  0  1  2
 ```
 
 The pattern is:
 
 ```text
-22202
+10012
 ```
 
-Among the 105 candidates, exactly one word lies in that feedback bucket:
+Among the 76 candidates, exactly two words lie in that feedback bucket:
 
 ```text
+PLAIT
 PLANT
 ```
 
 The candidate path is now:
 
 ```text
-10,982 ──RATES / 01100──▶ 105 ──PLAIT / 22202──▶ 1
+8,888 ──RATES / 01100──▶ 76 ──ADOPT / 10012──▶ 2
 ```
 
-### Round 3: one answer remains
+### Round 3: two answers remain
 
-When only one candidate remains, no more uncertainty needs to be measured:
+`PLAIT` and `PLANT` produce different patterns against either candidate, so both
+have exactly `1 bit` of entropy. Their commonness tiers break the tie:
+
+| Rank | Guess | Smart score | Entropy | ESDB tier |
+| ---: | --- | ---: | ---: | ---: |
+| 1 | `PLANT` | `100.0` | `1.0 bit` | 35 |
+| 2 | `PLAIT` | `70.0` | `1.0 bit` | 50 |
+
+The more familiar `PLANT` is now the recommendation:
 
 ```text
 guess = PLANT
-entropy = 0 bits
+entropy = 1 bit
 smart score = 100
 ```
 
@@ -893,7 +900,7 @@ risk near turn six.
 
 ```text
 function recommend(history):
-    candidates = allWords matching every observed feedback pattern
+    candidates = dictionaryWords matching every observed feedback pattern
 
     if candidates is empty:
         return []
@@ -964,11 +971,11 @@ The current solver moves toward an answer by repeating three fundamental steps:
 In the `PLANT` example, that process was:
 
 ```text
-10,982 candidates
+8,888 candidates
     ↓ RATES reveals A and T, rejects R/E/S
-105 candidates
-    ↓ PLAIT confirms P/L/A/T and rejects I
-1 candidate
+76 candidates
+    ↓ ADOPT confirms T, repositions A/P, rejects D/O
+2 candidates: PLAIT and PLANT
     ↓ PLANT
 solved
 ```
