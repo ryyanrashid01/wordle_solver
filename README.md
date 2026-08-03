@@ -37,7 +37,7 @@ or open the complete searchable result list.
 | **A maintained offline dictionary** | 8,888 five-letter words generated from one pinned ESDB release, with no supplemental lists or runtime API. |
 | **Fast, private processing** | Candidate filtering stays in your browser and expensive ranking runs in a Web Worker. |
 | **Modern interface** | Responsive light and dark themes built with source-owned shadcn components, Radix primitives, Tailwind CSS, and Geist. |
-| **Interactive scoring lab** | Explore feedback buckets, entropy, expected remaining words, and every weighted score component on the [live mathematics page](https://ryyanrashid01.github.io/wordle_solver/#scoring). |
+| **Guided scoring walkthrough** | Start with APPLE or enter another five-letter word, then follow its complete solution path with every filter, entropy calculation, and weighted score shown on the [live explanation page](https://ryyanrashid01.github.io/wordle_solver/#/how-ranking-works). |
 
 ## How it works
 
@@ -105,9 +105,11 @@ The Vite build is configured for the `/wordle_solver/` GitHub Pages base path.
 
 ```text
 src/App.jsx                Main interface and interaction state
-src/components/ScoringGuide.jsx  Interactive algorithm and mathematics page
+src/components/ScoringGuide.jsx  Step-by-step ranking and mathematics walkthrough
 src/lib/solver.js          Wordle matching and ranking model
 src/lib/rank.worker.js     Background ranking worker
+src/lib/scoring-walkthrough.js  Generates narrated solution paths
+src/lib/scoring-walkthrough.worker.js  Calculates walkthroughs off the main thread
 src/lib/use-ranked-candidates.js Shared background-ranking hook
 src/data/words.js          Generated word universe and commonness tiers
 scripts/update-words.mjs   Reproducible ESDB import pipeline

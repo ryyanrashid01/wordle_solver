@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,10 +19,17 @@ import {
   Undo2,
   X,
 } from "lucide-react";
+import {
+  Link,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScoringGuide } from "@/components/ScoringGuide";
 import {
   Card,
   CardAction,
@@ -66,6 +73,11 @@ import {
 import { useRankedCandidates } from "./lib/use-ranked-candidates";
 
 const MAX_GUESSES = 6;
+const ScoringGuide = lazy(() =>
+  import("@/components/ScoringGuide").then((module) => ({
+    default: module.ScoringGuide,
+  })),
+);
 const emptyStates = () => Array(5).fill("absent");
 const keyboardRows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
 const brandFrames = [
@@ -353,15 +365,13 @@ function HelpDialog({ open, onOpenChange }) {
 }
 
 function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isScoringGuide = location.pathname === "/how-ranking-works";
   const [theme, setTheme] = useState(() =>
     typeof document !== "undefined" && document.documentElement.classList.contains("dark")
       ? "dark"
       : "light",
-  );
-  const [view, setView] = useState(() =>
-    typeof window !== "undefined" && window.location.hash === "#scoring"
-      ? "scoring"
-      : "solver",
   );
   const [history, setHistory] = useState([]);
   const [draft, setDraft] = useState("");
@@ -393,23 +403,15 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-    const syncView = () => {
-      setView(window.location.hash === "#scoring" ? "scoring" : "solver");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    };
-    window.addEventListener("hashchange", syncView);
-    return () => window.removeEventListener("hashchange", syncView);
-  }, []);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [location.pathname]);
 
   const openScoringGuide = () => {
-    window.location.hash = "scoring";
-    setView("scoring");
+    navigate("/how-ranking-works");
   };
 
   const openSolver = () => {
-    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
-    setView("solver");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    navigate("/");
   };
 
   const showNotice = useCallback((message) => {
@@ -462,7 +464,7 @@ function App() {
 
   useEffect(() => {
     const onKeyDown = (event) => {
-      if (view !== "solver" || helpOpen || drawerOpen) return;
+      if (isScoringGuide || helpOpen || drawerOpen) return;
       if (event.target instanceof HTMLInputElement) return;
       if (event.key === "Enter") handleKey("ENTER");
       else if (event.key === "Backspace") handleKey("BACKSPACE");
@@ -470,7 +472,7 @@ function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [drawerOpen, handleKey, helpOpen, view]);
+  }, [drawerOpen, handleKey, helpOpen, isScoringGuide]);
 
   const cycleState = (index) => {
     if (!draft[index]) return;
@@ -532,9 +534,9 @@ function App() {
 
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <a aria-label="Wordle Solver home" className="group" href={import.meta.env.BASE_URL}>
+          <Link aria-label="Wordle Solver home" className="group" to="/">
             <AnimatedBrand />
-          </a>
+          </Link>
 
           <div className="flex items-center gap-2">
             <Badge className="hidden border-border bg-muted/45 font-mono text-[9px] uppercase tracking-wider text-muted-foreground lg:flex" variant="outline">
@@ -543,8 +545,8 @@ function App() {
             <IconButton label={theme === "dark" ? "Use light mode" : "Use dark mode"} onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")}>
               {theme === "dark" ? <Sun /> : <Moon />}
             </IconButton>
-            <IconButton label={view === "scoring" ? "Back to solver" : "Scoring lab"} onClick={view === "scoring" ? openSolver : openScoringGuide}>
-              {view === "scoring" ? <ArrowLeft /> : <BookOpen />}
+            <IconButton label={isScoringGuide ? "Back to solver" : "How ranking works"} onClick={isScoringGuide ? openSolver : openScoringGuide}>
+              {isScoringGuide ? <ArrowLeft /> : <BookOpen />}
             </IconButton>
             <IconButton label="How it works" onClick={() => setHelpOpen(true)}><CircleHelp /></IconButton>
             <Tooltip>
@@ -557,10 +559,14 @@ function App() {
         </div>
       </header>
 
-      {view === "scoring" ? (
-        <ScoringGuide initialIsRanking={isRanking} initialRanked={rankedCandidates} onBack={openSolver} />
-      ) : (
-      <main className="relative z-10 mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+      <Routes>
+        <Route element={(
+          <Suspense fallback={<main className="relative z-10 grid min-h-[60svh] place-items-center"><LoaderCircle className="size-6 animate-spin text-primary" /></main>}>
+            <ScoringGuide onBack={openSolver} />
+          </Suspense>
+        )} path="/how-ranking-works" />
+        <Route element={(
+          <main className="relative z-10 mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         <section className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_430px]">
           <Card className="gap-0 border border-border bg-card/80 py-0 shadow-[0_24px_90px_rgba(0,0,0,.16)] backdrop-blur-xl">
             <CardHeader className="border-b border-border px-5 py-5 sm:px-7">
@@ -646,8 +652,11 @@ function App() {
             </CardContent>
           </Card>
         </section>
-      </main>
-      )}
+          </main>
+        )} path="/" />
+        <Route element={<Navigate replace to="/how-ranking-works" />} path="/scoring" />
+        <Route element={<Navigate replace to="/" />} path="*" />
+      </Routes>
 
       <footer className="relative z-10 mx-auto flex max-w-7xl flex-col justify-between gap-2 border-t border-border px-4 py-6 font-mono text-[9px] uppercase tracking-wider text-muted-foreground sm:flex-row sm:px-6">
         <span>Built for that “one more guess” feeling.</span>

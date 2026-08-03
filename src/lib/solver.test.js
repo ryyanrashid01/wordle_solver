@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  analyzeGuess,
   cycleTileState,
   filterCandidates,
   patternKey,
@@ -61,15 +60,4 @@ describe("Wordle scoring", () => {
     expect(rankCandidates(candidates, commonness)[0].word).toBe("slate");
   });
 
-  test("exposes entropy buckets for the interactive scoring guide", () => {
-    const analysis = analyzeGuess("cigar", ["cigar", "rebut"]);
-    expect(analysis.patternCount).toBe(2);
-    expect(analysis.entropy).toBe(1);
-    expect(analysis.expectedRemaining).toBe(1);
-    expect(analysis.worstCase).toBe(1);
-    expect(analysis.buckets.map(({ pattern }) => pattern).sort()).toEqual([
-      "00001",
-      "22222",
-    ]);
-  });
 });

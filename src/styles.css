@@ -258,6 +258,32 @@
 .brand-tile--present { background: var(--color-wordle-present); }
 .brand-tile--correct { background: var(--color-wordle-correct); }
 
+.scoring-guide .text-sm {
+  font-size: 1rem;
+  line-height: 1.75rem;
+}
+
+.scoring-guide .text-xs {
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+}
+
+.scoring-guide .text-\[11px\],
+.scoring-guide .text-\[10px\] {
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+}
+
+.scoring-guide .text-\[9px\] {
+  font-size: 0.6875rem;
+  line-height: 1rem;
+}
+
+.scoring-guide .text-\[8px\] {
+  font-size: 0.625rem;
+  line-height: 0.875rem;
+}
+
 @keyframes brand-tile-reveal {
   0% { opacity: 0; transform: rotateX(-90deg) translateY(-2px); }
   55% { opacity: 1; transform: rotateX(12deg) translateY(0); }
