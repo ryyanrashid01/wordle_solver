@@ -1,7 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowDownWideNarrow,
   ArrowLeft,
   ArrowRight,
+  ArrowUpNarrowWide,
   BookOpen,
   Check,
   ChevronRight,
@@ -73,6 +75,10 @@ import {
 import { useRankedCandidates } from "./lib/use-ranked-candidates";
 
 const MAX_GUESSES = 6;
+const SORT_ORDERS = [
+  { id: "best", label: "Best first", icon: ArrowDownWideNarrow },
+  { id: "worst", label: "Worst first", icon: ArrowUpNarrowWide },
+];
 const ScoringGuide = lazy(() =>
   import("@/components/ScoringGuide").then((module) => ({
     default: module.ScoringGuide,
@@ -253,20 +259,24 @@ function Keyboard({ states, onKey }) {
 
 function CandidateDrawer({ candidates, open, onOpenChange, onChoose }) {
   const [query, setQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState("best");
   const [visibleCount, setVisibleCount] = useState(180);
   const queryValue = query.trim().toLowerCase();
+  const direction = sortOrder === "best" ? -1 : 1;
   const filtered = candidates
     .map((candidate, index) => ({ ...candidate, rank: index + 1 }))
-    .filter(({ word }) => word.includes(queryValue));
+    .filter(({ word }) => word.includes(queryValue))
+    .sort((a, b) => direction * ((a.score - b.score) || (a.rank - b.rank)));
   const visible = filtered.slice(0, visibleCount);
 
   useEffect(() => {
     setVisibleCount(180);
-  }, [query]);
+  }, [query, sortOrder]);
 
   useEffect(() => {
     if (!open) {
       setQuery("");
+      setSortOrder("best");
       setVisibleCount(180);
     }
   }, [open]);
@@ -284,7 +294,12 @@ function CandidateDrawer({ candidates, open, onOpenChange, onChoose }) {
           <DrawerTitle className="font-heading text-2xl tracking-tight">
             {candidates.length.toLocaleString()} possible words
           </DrawerTitle>
-          <DrawerDescription>Every match from the ESDB word universe, ordered by its value as your next guess.</DrawerDescription>
+          <DrawerDescription>
+            Every match from the ESDB word universe,{" "}
+            {sortOrder === "best"
+              ? "ordered from the strongest next guess to the weakest."
+              : "ordered from the weakest next guess to the strongest."}
+          </DrawerDescription>
         </DrawerHeader>
 
         <div className="relative mx-5 my-4 sm:mx-7">
@@ -298,6 +313,26 @@ function CandidateDrawer({ candidates, open, onOpenChange, onChoose }) {
             placeholder="Find a word…"
             value={query}
           />
+        </div>
+
+        <div className="mx-5 mb-4 flex items-center justify-between gap-3 sm:mx-7">
+          <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Sort by score</span>
+          <div className="inline-flex overflow-hidden rounded-md border border-border bg-muted/45">
+            {SORT_ORDERS.map(({ id, label, icon: Icon }) => (
+              <Button
+                aria-pressed={sortOrder === id}
+                className={cn(
+                  "h-8 rounded-none px-3 text-[10px] uppercase tracking-wider",
+                  sortOrder === id && "bg-primary/10 text-primary",
+                )}
+                key={id}
+                onClick={() => setSortOrder(id)}
+                variant="ghost"
+              >
+                <Icon data-icon="inline-start" /> {label}
+              </Button>
+            ))}
+          </div>
         </div>
 
         <div className="grid grid-cols-[48px_1fr_auto_52px] gap-3 px-5 pb-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground sm:px-7">
